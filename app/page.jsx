@@ -172,24 +172,18 @@ export default function Home() {
           
           <!-- VA Web Components -->
           <script type="module">
-            try {
-              import { defineCustomElements } from 'https://unpkg.com/@department-of-veterans-affairs/web-components@latest/loader/index.js';
-              
-              // Initialize the components
-              defineCustomElements().then(() => {
+            (async () => {
+              try {
+                const { defineCustomElements } = await import('https://unpkg.com/@department-of-veterans-affairs/web-components@latest/loader/index.js');
+                await defineCustomElements();
                 console.log('VA Components defined and ready');
                 document.dispatchEvent(new CustomEvent('va-components-ready'));
-                
-                // Signal that content is loaded
                 window.parent.postMessage('preview-loaded', '*');
-              }).catch(err => {
+              } catch (err) {
                 console.error('Error loading VA components:', err);
                 window.parent.postMessage('preview-error', '*');
-              });
-            } catch (err) {
-              console.error('Error in VA components script:', err);
-              window.parent.postMessage('preview-error', '*');
-            }
+              }
+            })();
           </script>
         </head>
         <body style="background-color: white;">
@@ -197,7 +191,7 @@ export default function Home() {
           <div id="root">${safeHtmlCode}</div>
           
           <!-- JavaScript Tab Content -->
-          <script type="text/babel" id="user-code">
+          <script type="text/babel" data-presets="react,env" id="user-code">
             // Wait for VA components to be ready before rendering user code
             (function() {
               const renderUserApp = () => {
