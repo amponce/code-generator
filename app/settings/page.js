@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import WebSearchToggle from '@/components/WebSearchToggle';
-import VectorStoreToggle from '@/components/VectorStoreToggle';
+import WebSearchToggle from '../../components/WebSearchToggle';
+import VectorStoreToggle from '../../components/VectorStoreToggle';
 
 export default function SettingsPage() {
   const [saved, setSaved] = useState(false);

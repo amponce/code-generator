@@ -1,6 +1,6 @@
 'use client';
 
-import PdfUploader from '@/components/PdfUploader';
+import PdfUploader from '../../components/PdfUploader';
 import Link from 'next/link';
 
 export default function PdfFormsPage() {
