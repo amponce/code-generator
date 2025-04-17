@@ -9,8 +9,32 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "next": "15.3.0"
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@codemirror/lang-css": "^6.3.1",
+    "@codemirror/lang-html": "^6.4.9",
+    "@codemirror/lang-javascript": "^6.2.3",
+    "@codemirror/lang-json": "^6.0.1",
+    "@codemirror/lang-markdown": "^6.3.2",
+    "@codemirror/view": "^6.36.5",
+    "@department-of-veterans-affairs/component-library": "^50.2.0",
+    "@uiw/codemirror-theme-vscode": "^4.23.10",
+    "@uiw/react-codemirror": "^4.23.10",
+    "ai": "^2.2.37",
+    "figma-api": "^2.0.2-beta",
+    "framer-motion": "^12.7.3",
+    "js-beautify": "^1.15.4",
+    "lucide-react": "^0.488.0",
+    "next": "15.3.0",
+    "openai": "^4.28.0",
+    "partial-json": "^0.1.7",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-monaco-editor": "^0.58.0",
+    "vercel": "^41.6.1",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.20",
+    "typescript": "5.8.3"
   }
 }
