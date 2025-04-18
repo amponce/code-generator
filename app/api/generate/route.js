@@ -168,22 +168,38 @@ Ensure all changes maintain the same style, naming conventions, and approach as 
           // Add code validation logging
           console.log(`Raw generated code: ${finalCode.substring(0, 100)}...`);
 
-          if (!finalCode.trim().startsWith('function App()') && !finalCode.trim().startsWith('function App ') && !finalCode.trim().startsWith('const App')) {
+          // Ensure App component is properly defined
+          if (!finalCode.trim().startsWith('function App()') && 
+              !finalCode.trim().startsWith('function App ') && 
+              !finalCode.trim().startsWith('const App =') &&
+              !finalCode.trim().startsWith('class App')) {
             console.log("Code doesn't start with App function declaration, attempting to wrap it");
-            // Try to extract JSX if there is any
-            const jsxMatch = finalCode.match(/<[\s\S]*>[\s\S]*<\/[\s\S]*>/m);
-            if (jsxMatch) {
-              // If JSX found, wrap it in an App function
-              console.log("Found JSX, wrapping in App function");
-              finalCode = `function App() {
+            
+            // More robust App component check
+            const appComponentPattern = /function\s+App\s*\(|const\s+App\s*=|class\s+App\s+extends|var\s+App\s*=|let\s+App\s*=|export\s+(default\s+)?(function\s+App|class\s+App|const\s+App\s*=)/i;
+            const hasAppComponent = appComponentPattern.test(finalCode);
+            
+            if (!hasAppComponent) {
+              // Try to extract JSX if there is any
+              const jsxMatch = finalCode.match(/<[\s\S]*>[\s\S]*<\/[\s\S]*>/m);
+              if (jsxMatch) {
+                // If JSX found, wrap it in an App function
+                console.log("Found JSX, wrapping in App function");
+                finalCode = `function App() {
+  // Make React hooks available
+  const { useState, useEffect, useRef, useCallback, useMemo } = React;
+  
   return (
     ${jsxMatch[0]}
   );
 }`;
-            } else {
-              // Fallback to a default App function
-              console.log("No JSX found, using fallback App function");
-              finalCode = `function App() {
+              } else {
+                // Fallback to a default App function
+                console.log("No JSX found, using fallback App function");
+                finalCode = `function App() {
+  // Make React hooks available
+  const { useState, useEffect, useRef, useCallback, useMemo } = React;
+  
   return (
     <div className="vads-l-grid-container">
       <h2>Generated Component</h2>
@@ -191,6 +207,10 @@ Ensure all changes maintain the same style, naming conventions, and approach as 
     </div>
   );
 }`;
+              }
+            } else {
+              // Code has App component but not at the start, we'll keep it as is
+              console.log("App component found but not at start of code");
             }
           }
 
@@ -202,10 +222,10 @@ Ensure all changes maintain the same style, naming conventions, and approach as 
 
           // Check for React dependencies
           if (finalCode.includes('useState') || finalCode.includes('useEffect') || finalCode.includes('useRef')) {
-            if (!finalCode.includes('React.useState') && !finalCode.includes('import React')) {
+            if (!finalCode.includes('React.useState') && !finalCode.includes('import React') && !finalCode.includes('const { useState')) {
               // Add React destructuring if not present
               finalCode = finalCode.replace(/function App\(\)\s*{/,
-                'function App() {\n  // React hooks must be imported or accessed via React namespace\n  const { useState, useEffect, useRef } = React;');
+                'function App() {\n  // React hooks must be imported or accessed via React namespace\n  const { useState, useEffect, useRef, useCallback, useMemo } = React;');
             }
           }
 

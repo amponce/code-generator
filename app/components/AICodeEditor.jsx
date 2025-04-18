@@ -145,127 +145,205 @@ const AICodeEditor = ({
     // Clean up any markdown code ticks that might be in the generated code
     safeJsCode = safeJsCode.replace(/```jsx|```js|```javascript|```|jsx/g, "").trim();
     
+    // Enhanced check for App component with more patterns
+    const hasAppComponent = /function\s+App\s*\(|const\s+App\s*=|class\s+App\s+extends|var\s+App\s*=|let\s+App\s*=|const\s+App\s*\s*\(/i.test(safeJsCode);
+
+    // If no App component is found, wrap the code in one
+    if (!hasAppComponent) {
+      console.log("No App component found, wrapping code in App function");
+      safeJsCode = `
+// Auto-generated App wrapper component
+function App() {
+  // Make React hooks available
+  const { useState, useEffect, useRef, useCallback, useMemo } = React;
+  
+  return (
+    <div className="vads-l-grid-container">
+      ${safeJsCode.includes('return') ? safeJsCode : `
+      <div>
+        {/* Original code wrapped in App */}
+        ${safeJsCode}
+      </div>
+      `}
+    </div>
+  );
+}
+`;
+    }
+    
     return `
-      <!DOCTYPE html>
-        <html lang="en">
-          <head>
-            <meta charset="UTF-8" />
-            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-            <title>VA The Preview</title>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VA Component Preview</title>
+  
+  <!-- VA Component Library CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/@department-of-veterans-affairs/web-components/dist/main.css">
+  
+  <!-- Custom CSS -->
+  <style>
+    ${safeCssCode}
+    
+    /* Ensure background is white */
+    body {
+      background-color: white;
+      color: #323a45;
+      font-family: Source Sans Pro, Helvetica Neue, Helvetica, Roboto, Arial, sans-serif;
+    }
+    
+    /* Preview container styling */
+    .preview-container {
+      padding: 1rem;
+      max-width: 100%;
+      margin: 0 auto;
+    }
+    
+    /* Error message styling */
+    .preview-error {
+      color: red;
+      padding: 1rem;
+      background: rgba(255,0,0,0.1);
+      border: 1px solid red;
+      margin: 1rem 0;
+      border-radius: 4px;
+    }
+  </style>
+  
+  <!-- Error handling -->
+  <script>
+    window.onerror = function(message, source, lineno, colno, error) {
+      console.error('Preview error:', message, error);
+      
+      // Only add error message if it's not already there
+      if (!document.querySelector('.preview-error')) {
+        document.body.innerHTML += '<div class="preview-error"><strong>JavaScript Error:</strong> ' + message + '</div>';
+      }
+      return true;
+    };
+  </script>
+  
+  <!-- React and ReactDOM scripts -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  
+  <!-- Babel for JSX transformation -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <!-- Component HTML -->
+  ${safeHtmlCode}
 
-            <!-- VA Design System CSS -->
-            <link rel="stylesheet" href="https://unpkg.com/@department-of-veterans-affairs/web-components/dist/main.css" />
+  <!-- VA Web Components -->
+  <script type="module">
+    console.log("Initializing VA components integration");
+    
+    import { defineCustomElements } from 'https://unpkg.com/@department-of-veterans-affairs/web-components@latest/loader/index.js';
+    defineCustomElements()
+      .then(() => {
+        console.log('VA Components defined and ready');
+        document.dispatchEvent(new CustomEvent('va-components-ready'));
+      })
+      .catch(err => {
+        console.error('Error loading VA components:', err);
+      });
+  </script>
 
-            <!-- React and Babel -->
-            <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-            <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-            <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-            <style>
-              /* Base styles for proper display */
-              html {
-                height: auto;
-                overflow: visible;
+  <script type="text/babel" id="user-code">
+    // Wait for VA components to be ready before rendering user code
+    (function() {
+      const renderUserApp = () => {
+        try {
+          // Set up React hooks to be available in the scope
+          const { useState, useEffect, useRef, useCallback, useMemo, useContext } = React;
+          
+          // Define the App component from the generated code
+          ${safeJsCode}
+          
+          // Find the root element - if not explicit in HTML, use a default root
+          const rootElement = document.getElementById('root');
+          if (rootElement && typeof App === 'function') {
+            try {
+              // Check if a root already exists
+              if (window._reactRoot) {
+                // Update existing root
+                window._reactRoot.render(React.createElement(App));
+              } else if (typeof ReactDOM.createRoot === 'function') {
+                // React 18 - create new root
+                window._reactRoot = ReactDOM.createRoot(rootElement);
+                window._reactRoot.render(React.createElement(App));
+              } else {
+                // React 17 fallback
+                ReactDOM.render(React.createElement(App), rootElement);
               }
-              body {
-                min-height: 100%;
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-                overflow: visible;
-                background-color: #ffffff;
-                color: #323a45;
-                font-family: Source Sans Pro, Helvetica Neue, Helvetica, Roboto, Arial, sans-serif;
-              }
-
-              /* Make sure code blocks are scrollable */
-              pre,
-              code {
-                white-space: pre;
-                overflow-x: auto;
-                max-width: 100%;
-                display: block;
-              }
-
-              /* Custom user styles */
-              ${safeCssCode}
-            </style>
-          </head>
-          <body>
-            <!-- Component HTML -->
-            ${safeHtmlCode}
-
-            <!-- VA Web Components -->
-            <script type="module">
-              console.log("Initializing VA components integration");
+              console.log('App rendered successfully');
+            } catch (err) {
+              console.error('Error rendering App:', err);
+              rootElement.innerHTML = '<div class="preview-error">Error rendering component: ' + err.message + '</div>';
+            }
+          } else if (!rootElement) {
+            console.error('Root element not found');
+            document.body.innerHTML += '<div class="preview-error">Error: No root element found. Add a &lt;div id="root"&gt;&lt;/div&gt; to your HTML.</div>';
+          } else if (typeof App !== 'function') {
+            console.error('App is not a function');
+            document.body.innerHTML += '<div class="preview-error">Error: App component is not defined as a function.</div>';
+            
+            // Try to automatically create an App function if missing
+            try {
+              // Define a basic App function that will show the error but allow the preview to initialize
+              window.App = function() {
+                return React.createElement('div', {
+                  className: 'vads-l-grid-container vads-u-padding--3'
+                }, [
+                  React.createElement('va-alert', {
+                    status: 'error',
+                    visible: true,
+                    key: 'error-alert'
+                  }, [
+                    React.createElement('span', {
+                      slot: 'headline',
+                      key: 'headline'
+                    }, 'App Function Missing'),
+                    React.createElement('p', {
+                      key: 'message'
+                    }, 'Your code needs to define an App function component. Please check your JavaScript code and ensure a proper App component is defined.')
+                  ])
+                ]);
+              };
               
-              import { defineCustomElements } from 'https://unpkg.com/@department-of-veterans-affairs/web-components@latest/loader/index.js';
-              defineCustomElements()
-                .then(() => {
-                  console.log('VA Components defined and ready');
-                  document.dispatchEvent(new CustomEvent('va-components-ready'));
-                })
-                .catch(err => {
-                  console.error('Error loading VA components:', err);
-                });
-            </script>
+              // Try rendering the auto-created App
+              if (typeof ReactDOM.createRoot === 'function') {
+                window._reactRoot = ReactDOM.createRoot(rootElement);
+                window._reactRoot.render(React.createElement(window.App));
+              } else {
+                ReactDOM.render(React.createElement(window.App), rootElement);
+              }
+            } catch (recoverErr) {
+              console.error('Failed to create recovery App component:', recoverErr);
+            }
+          }
+        } catch (err) {
+          console.error('Script error:', err);
+          document.body.innerHTML += '<div class="preview-error">Script error: ' + err.message + '</div>';
+        }
+      };
 
-            <script type="text/babel" id="user-code">
-              // Wait for VA components to be ready before rendering user code
-              (function() {
-                const renderUserApp = () => {
-                  try {
-                    ${safeJsCode}
-                    
-                    // Find the root element - if not explicit in HTML, use a default root
-                    const rootElement = document.getElementById('root');
-                    if (rootElement && typeof App === 'function') {
-                      try {
-                        // Check if a root already exists
-                        if (window._reactRoot) {
-                          // Update existing root
-                          window._reactRoot.render(React.createElement(App));
-                        } else if (typeof ReactDOM.createRoot === 'function') {
-                          // React 18 - create new root
-                          window._reactRoot = ReactDOM.createRoot(rootElement);
-                          window._reactRoot.render(React.createElement(App));
-                        } else {
-                          // React 17 fallback
-                          ReactDOM.render(React.createElement(App), rootElement);
-                        }
-                        console.log('App rendered successfully');
-                      } catch (err) {
-                        console.error('Error rendering App:', err);
-                        rootElement.innerHTML = '<div style="color: red; padding: 1rem;">Error rendering component: ' + err.message + '</div>';
-                      }
-                    } else if (!rootElement) {
-                      console.error('Root element not found');
-                      document.body.innerHTML += '<div style="color: red; padding: 1rem;">Error: No root element found.</div>';
-                    } else if (typeof App !== 'function') {
-                      console.error('App is not a function');
-                      document.body.innerHTML += '<div style="color: red; padding: 1rem;">Error: App component is not defined as a function.</div>';
-                    }
-                  } catch (err) {
-                    console.error('Script error:', err);
-                    document.body.innerHTML += '<div style="color: red; padding: 1rem;">Script error: ' + err.message + '</div>';
-                  }
-                };
+      // Try to render when document is ready
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        setTimeout(renderUserApp, 100);
+      } else {
+        document.addEventListener('DOMContentLoaded', () => {
+          setTimeout(renderUserApp, 100);
+        });
+      }
 
-                // Try to render when document is ready
-                if (document.readyState === 'complete' || document.readyState === 'interactive') {
-                  setTimeout(renderUserApp, 100);
-                } else {
-                  document.addEventListener('DOMContentLoaded', () => {
-                    setTimeout(renderUserApp, 100);
-                  });
-                }
-
-                // Also render when VA components are ready
-                document.addEventListener('va-components-ready', renderUserApp);
-              })();
-            </script>
-          </body>
-        </html>
+      // Also render when VA components are ready
+      document.addEventListener('va-components-ready', renderUserApp);
+    })();
+  </script>
+</body>
+</html>
     `;
   };
 

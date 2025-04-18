@@ -56,7 +56,35 @@ export default function Home() {
   // Handle VA form component code generated from PDF
   const handleFormGenerated = (code) => {
     try {
-      const { parsedHtml, parsedCss, parsedJs } = parseGeneratedCode(code);
+      // Ensure we're working with a string
+      const safeCode = typeof code === 'string' ? code : JSON.stringify(code);
+      
+      // Clean up any markdown code ticks
+      const cleanedCode = safeCode.replace(/```jsx|```js|```javascript|```|jsx/g, "").trim();
+      
+      console.log("Processing form generated code, length:", cleanedCode.length);
+      
+      // Check for App component
+      const appComponentPattern = /function\s+App\s*\(|const\s+App\s*=|class\s+App\s+extends|var\s+App\s*=|let\s+App\s*=|export\s+(default\s+)?(function\s+App|class\s+App|const\s+App\s*=)/i;
+      const hasAppComponent = appComponentPattern.test(cleanedCode);
+      
+      let processedCode = cleanedCode;
+      
+      if (!hasAppComponent) {
+        console.log("No App component found in form code, adding one");
+        processedCode = `function App() {
+  // Make React hooks available
+  const { useState, useEffect, useRef, useCallback, useMemo } = React;
+  
+  return (
+    <div className="vads-l-grid-container">
+      ${cleanedCode}
+    </div>
+  );
+}`;
+      }
+      
+      const { parsedHtml, parsedCss, parsedJs } = parseGeneratedCode(processedCode);
       setHtmlCode(parsedHtml);
       setCssCode(parsedCss);
       setJsCode(parsedJs);
@@ -104,22 +132,46 @@ export default function Home() {
       }
 
       // Process the JavaScript code before injecting it
-      // Make sure to handle any unexpected formats
-      const processedJsCode = (jsCode || '')
-        // Remove all export variations
-        .replace(/export\s+default\s+App\s*;?/g, '')
-        .replace(/export\s+default\s+function\s+App/g, 'function App')
-        .replace(/export\s+function\s+App/g, 'function App')
-        .replace(/export\s+const\s+App\s*=/g, 'const App =')
-        .replace(/export\s+default\s+class\s+App/g, 'class App')
-        .replace(/export\s+class\s+App/g, 'class App')
-        .replace(/export\s+default\s+/g, '')
-        .replace(/export\s+/g, '')
-        // Remove all import variations
-        .replace(/import\s+React\s*,?\s*{\s*[^}]*\s*}\s*from\s+['"]react['"];?/g, '/* React import removed */')
-        .replace(/import\s+React\s+from\s+['"]react['"];?/g, '/* React import removed */')
-        .replace(/import\s+{\s*[^}]*\s*}\s*from\s+['"]react['"];?/g, '/* React import removed */')
-        .replace(/import\s+[^;]+;?/g, '/* import removed */');
+      // Enhanced App component check
+      const appComponentPattern = /function\s+App\s*\(|const\s+App\s*=|class\s+App\s+extends|var\s+App\s*=|let\s+App\s*=|export\s+(default\s+)?(function\s+App|class\s+App|const\s+App\s*=)/i;
+      let hasAppComponent = appComponentPattern.test(jsCode); 
+      
+      let processedJsCode = '';
+      if (!hasAppComponent) {
+        console.log("No App component found in JS code, adding wrapper");
+        processedJsCode = `
+// Auto-generated App wrapper component
+function App() {
+  // Make React hooks available
+  const { useState, useEffect, useRef, useCallback, useMemo } = React;
+  
+  return (
+    <div className="vads-l-grid-container">
+      <div>
+        {/* Original code wrapped in App */}
+        ${jsCode || '// No code provided'}
+      </div>
+    </div>
+  );
+}`;
+      } else {
+        // Regular processing when App component exists
+        processedJsCode = (jsCode || '')
+          // Remove all export variations
+          .replace(/export\s+default\s+App\s*;?/g, '')
+          .replace(/export\s+default\s+function\s+App/g, 'function App')
+          .replace(/export\s+function\s+App/g, 'function App')
+          .replace(/export\s+const\s+App\s*=/g, 'const App =')
+          .replace(/export\s+default\s+class\s+App/g, 'class App')
+          .replace(/export\s+class\s+App/g, 'class App')
+          .replace(/export\s+default\s+/g, '')
+          .replace(/export\s+/g, '')
+          // Remove all import variations
+          .replace(/import\s+React\s*,?\s*{\s*[^}]*\s*}\s*from\s+['"]react['"];?/g, '/* React import removed */')
+          .replace(/import\s+React\s+from\s+['"]react['"];?/g, '/* React import removed */')
+          .replace(/import\s+{\s*[^}]*\s*}\s*from\s+['"]react['"];?/g, '/* React import removed */')
+          .replace(/import\s+[^;]+;?/g, '/* import removed */');
+      }
 
       // Make sure we handle null/undefined values
       const safeHtmlCode = htmlCode || '<!-- No HTML content -->';
@@ -229,6 +281,40 @@ export default function Home() {
                   } else if (typeof App !== 'function') {
                     console.error('App is not a function');
                     document.body.innerHTML += '<div style="color: red; padding: 1rem; background: rgba(255,0,0,0.1); border: 1px solid red;">Error: App component is not defined as a function.</div>';
+                    
+                    // Try to automatically create an App function if missing
+                    try {
+                      // Define a basic App function that will show the error but allow the preview to initialize
+                      window.App = function() {
+                        return React.createElement('div', {
+                          className: 'vads-l-grid-container vads-u-padding--3'
+                        }, [
+                          React.createElement('va-alert', {
+                            status: 'error',
+                            visible: true,
+                            key: 'error-alert'
+                          }, [
+                            React.createElement('span', {
+                              slot: 'headline',
+                              key: 'headline'
+                            }, 'App Function Missing'),
+                            React.createElement('p', {
+                              key: 'message'
+                            }, 'Your code needs to define an App function component. Please check your JavaScript code and ensure a proper App component is defined.')
+                          ])
+                        ]);
+                      };
+                      
+                      // Try rendering the auto-created App
+                      if (typeof ReactDOM.createRoot === 'function') {
+                        window._reactRoot = ReactDOM.createRoot(rootElement);
+                        window._reactRoot.render(React.createElement(window.App));
+                      } else {
+                        ReactDOM.render(React.createElement(window.App), rootElement);
+                      }
+                    } catch (recoverErr) {
+                      console.error('Failed to create recovery App component:', recoverErr);
+                    }
                   }
                 } catch (err) {
                   console.error('Script error:', err);
@@ -332,12 +418,12 @@ export default function Home() {
       
       console.log("Parsing generated code, length:", code.length);
 
-      // Handle different function declaration patterns - more relaxed pattern matching
-      const appComponentPattern = /App\s*\(/;
+      // More robust App component pattern matching
+      const appComponentPattern = /function\s+App\s*\(|const\s+App\s*=|class\s+App\s+extends|var\s+App\s*=|let\s+App\s*=|export\s+function\s+App|export\s+default\s+function\s+App|export\s+const\s+App|export\s+default\s+class\s+App/i;
       const hasAppComponent = appComponentPattern.test(code);
       
       if (!hasAppComponent) {
-        console.warn("Code does not contain an App component. Keeping existing component structure.");
+        console.warn("Code does not contain an App component. Will attempt to add one.");
         // Still proceed with extraction to find any elements or styles
       }
       
@@ -401,7 +487,11 @@ export default function Home() {
       
       // Ensure App component exists - only create it if we found HTML but no App component
       if (!hasAppComponent && parsedHtml !== '<!-- No HTML content generated -->' && parsedHtml !== htmlCode) {
-        parsedJs = `function App() {
+        parsedJs = `// Auto-generated App wrapper component
+function App() {
+  // Make React hooks available
+  const { useState, useEffect, useRef, useCallback, useMemo } = React;
+  
   return (
     <div className="vads-l-grid-container">
       ${parsedHtml}
@@ -411,6 +501,25 @@ export default function Home() {
         
 // Original code:
 ${parsedJs}`;
+      } else if (!hasAppComponent) {
+        // No App component and no valid HTML found - create a basic App component 
+        parsedJs = `// Auto-generated App wrapper component
+function App() {
+  // Make React hooks available
+  const { useState, useEffect, useRef, useCallback, useMemo } = React;
+  
+  return (
+    <div className="vads-l-grid-container vads-u-padding--3">
+      <va-alert status="info" visible>
+        <span slot="headline">Component Generated</span>
+        <p>Your code has been wrapped in an App component.</p>
+      </va-alert>
+      <div className="vads-u-padding-top--3">
+        ${parsedJs.includes('<') && parsedJs.includes('>') ? parsedJs : `<pre>${parsedJs.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`}
+      </div>
+    </div>
+  );
+}`;
       }
       
       console.log("Parsing complete - HTML:", parsedHtml.length, "CSS:", parsedCss.length, "JS:", parsedJs.length);
